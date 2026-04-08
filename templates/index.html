@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>통계청 생활인구 대시보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0d0f14;
+    --surface: #161920;
+    --surface2: #1e2230;
+    --border: rgba(255,255,255,0.07);
+    --accent: #4f8ef7;
+    --accent2: #f75f8e;
+    --accent3: #4fc98e;
+    --text: #e8eaf0;
+    --text2: #7c84a0;
+    --text3: #4a5070;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 1.2rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    background: var(--surface);
+  }
+
+  header .logo {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--accent);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    border: 1px solid var(--accent);
+    padding: 3px 8px;
+    border-radius: 3px;
+  }
+
+  header h1 {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  header .badge {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--text3);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 260px 1fr;
+    min-height: calc(100vh - 57px);
+  }
+
+  /* ─── Sidebar ─── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 1.5rem 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .sidebar-section label {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--text3);
+    display: block;
+    margin-bottom: 10px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .type-btn {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: none;
+    border: 1px solid transparent;
+    color: var(--text2);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 13px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-bottom: 4px;
+    transition: all 0.15s;
+  }
+
+  .type-btn:hover { background: var(--surface2); color: var(--text); }
+
+  .type-btn.active {
+    background: rgba(79,142,247,0.12);
+    border-color: rgba(79,142,247,0.4);
+    color: var(--accent);
+  }
+
+  .period-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+  }
+
+  .period-grid select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 12px;
+    padding: 7px 8px;
+    border-radius: 6px;
+    width: 100%;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .period-grid select:focus { border-color: var(--accent); }
+
+  .fetch-btn {
+    width: 100%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    font-family: 'Noto Sans KR', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 11px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    margin-top: auto;
+  }
+
+  .fetch-btn:hover { opacity: 0.85; }
+  .fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ─── Main ─── */
+  .main {
+    padding: 1.5rem 2rem;
+    overflow-y: auto;
+  }
+
+  .metric-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    margin-bottom: 1.5rem;
+  }
+
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+  }
+
+  .metric-card .m-label {
+    font-size: 11px;
+    color: var(--text3);
+    letter-spacing: 0.5px;
+    margin-bottom: 6px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .metric-card .m-value {
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    line-height: 1;
+  }
+
+  .metric-card .m-sub {
+    font-size: 11px;
+    color: var(--text3);
+    margin-top: 4px;
+  }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .chart-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1.2rem;
+  }
+
+  .chart-card.full { grid-column: 1 / -1; }
+
+  .chart-card .c-title {
+    font-size: 12px;
+    color: var(--text2);
+    letter-spacing: 0.5px;
+    margin-bottom: 14px;
+    font-family: 'DM Mono', monospace;
+  }
+
+  .chart-wrap { position: relative; width: 100%; }
+
+  .state-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 4rem 2rem;
+    color: var(--text3);
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .state-box .icon { font-size: 32px; opacity: 0.4; }
+
+  .spinner {
+    width: 28px; height: 28px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    background: rgba(247,95,142,0.1);
+    border: 1px solid rgba(247,95,142,0.3);
+    border-radius: 8px;
+    padding: 1rem 1.2rem;
+    font-size: 13px;
+    color: var(--accent2);
+    margin-bottom: 1rem;
+  }
+
+  .legend-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 10px;
+    font-size: 12px;
+    color: var(--text2);
+  }
+
+  .legend-row span { display: flex; align-items: center; gap: 5px; }
+  .ld { width: 10px; height: 10px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">KOSTAT</div>
+  <h1>생활인구 대시보드</h1>
+  <div class="badge">통계청 나우캐스트</div>
+</header>
+
+<div class="layout">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <label>데이터 유형</label>
+      <button class="type-btn active" data-type="living_gender">시군구별 생활인구 · 성별</button>
+      <button class="type-btn" data-type="living_age">시군구별 생활인구 · 연령별</button>
+      <button class="type-btn" data-type="staying_resident">체류인구 · 내외국인</button>
+      <button class="type-btn" data-type="staying_gender">체류인구 · 성별</button>
+      <button class="type-btn" data-type="staying_age">체류인구 · 연령별</button>
+    </div>
+
+    <div class="sidebar-section">
+      <label>조회 기간</label>
+      <div class="period-grid">
+        <select id="fromPeriod"></select>
+        <select id="toPeriod"></select>
+      </div>
+    </div>
+
+    <button class="fetch-btn" id="fetchBtn" onclick="fetchData()">조회하기</button>
+  </aside>
+
+  <!-- Main -->
+  <main class="main" id="mainArea">
+    <div class="state-box">
+      <div class="icon">📊</div>
+      <div>데이터 유형과 기간을 선택 후 조회하세요</div>
+    </div>
+  </main>
+</div>
+
+<script>
+// ─── Period dropdowns ───────────────────────────────────────
+const periods = [];
+const now = new Date();
+for (let i = 18; i >= 0; i--) {
+  const d = new Date(now.getFullYear(), now.getMonth() - 3 - i, 1);
+  const ym = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}`;
+  periods.push(ym);
+}
+
+const fmt = p => `${p.slice(0,4)}.${p.slice(4)}`;
+
+const fromSel = document.getElementById('fromPeriod');
+const toSel = document.getElementById('toPeriod');
+periods.forEach((p, i) => {
+  fromSel.innerHTML += `<option value="${p}" ${i===periods.length-4?'selected':''}>${fmt(p)}</option>`;
+  toSel.innerHTML   += `<option value="${p}" ${i===periods.length-1?'selected':''}>${fmt(p)}</option>`;
+});
+
+// ─── Type buttons ───────────────────────────────────────────
+let currentType = 'living_gender';
+document.querySelectorAll('.type-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentType = btn.dataset.type;
+  });
+});
+
+// ─── Chart instances ────────────────────────────────────────
+let charts = {};
+function destroyCharts() {
+  Object.values(charts).forEach(c => c && c.destroy());
+  charts = {};
+}
+
+// ─── Colors ─────────────────────────────────────────────────
+const COLORS = ['#4f8ef7','#f75f8e','#4fc98e','#f7b84f','#a78bfa','#38bdf8','#fb923c','#34d399'];
+
+const SIDO_SHORT = nm => nm
+  .replace('광역시','').replace('특별시','')
+  .replace('특별자치시','').replace('특별자치도','')
+  .replace('도','').replace('시','');
+
+// ─── Fetch ──────────────────────────────────────────────────
+async function fetchData() {
+  const btn = document.getElementById('fetchBtn');
+  const main = document.getElementById('mainArea');
+
+  const from = fromSel.value, to = toSel.value;
+  const allP = periods.filter(p => p >= Math.min(from,to) && p <= Math.max(from,to));
+
+  btn.disabled = true;
+  btn.textContent = '불러오는 중...';
+  main.innerHTML = `<div class="state-box"><div class="spinner"></div><div>데이터 조회 중...</div></div>`;
+  destroyCharts();
+
+  try {
+    const res = await fetch('/api/fetch', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ type: currentType, periods: allP })
+    });
+    const rows = await res.json();
+
+    if (!Array.isArray(rows) || rows.length === 0) throw new Error('데이터가 없습니다');
+
+    renderDashboard(rows, allP, currentType);
+  } catch(e) {
+    main.innerHTML = `<div class="error-msg">⚠ ${e.message || '데이터 로드 실패'}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '조회하기';
+  }
+}
+
+// ─── Render ─────────────────────────────────────────────────
+function renderDashboard(rows, allP, type) {
+  const main = document.getElementById('mainArea');
+  const latestP = allP[allP.length - 1];
+  const isGender = type.includes('gender');
+  const isAge    = type.includes('age');
+  const isRes    = type.includes('resident');
+
+  // primary filter code
+  const primaryCode = rows[0]?.populTypeCd || null;
+  const filtered = primaryCode ? rows.filter(r => r.populTypeCd === primaryCode) : rows;
+
+  // detect sub-keys from first row
+  const sampleRow = filtered[0] || {};
+  const pKey = `m${latestP}`;
+  const subKeys = Object.keys(sampleRow).filter(k => k.startsWith(pKey) && !k.includes('Pnt'));
+
+  // build sido totals for latest period
+  const sidoMap = {};
+  filtered.forEach(row => {
+    const sido = SIDO_SHORT(row.agencyNm || '');
+    if (!sido) return;
+    if (!sidoMap[sido]) sidoMap[sido] = { tot: 0, sub: {} };
+    const tot = parseInt(sampleRow[`${pKey}TotPcnt`] || row[`${pKey}TotPcnt`] || 0);
+    sidoMap[sido].tot += parseInt(row[`${pKey}TotPcnt`] || 0);
+    subKeys.forEach(k => {
+      sidoMap[sido].sub[k] = (sidoMap[sido].sub[k] || 0) + parseInt(row[k] || 0);
+    });
+  });
+
+  const sidos = Object.entries(sidoMap).sort((a,b) => b[1].tot - a[1].tot);
+  const labels = sidos.map(([k]) => k);
+
+  // national totals
+  const natTot = sidos.reduce((s,[,v]) => s + v.tot, 0);
+
+  // ─── HTML ────────────────────────────────────────────────
+  let metricsHTML = `<div class="metric-row">
+    <div class="metric-card">
+      <div class="m-label">전국 합계</div>
+      <div class="m-value" style="color:var(--accent)">${(natTot/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${latestP.slice(0,4)}년 ${parseInt(latestP.slice(4))}월 기준</div>
+    </div>`;
+
+  if (isGender) {
+    const natMal = sidos.reduce((s,[,v]) => s + (v.sub[`${pKey}MalPcnt`]||0), 0);
+    const natFem = sidos.reduce((s,[,v]) => s + (v.sub[`${pKey}FemPcnt`]||0), 0);
+    metricsHTML += `
+    <div class="metric-card">
+      <div class="m-label">남성</div>
+      <div class="m-value" style="color:#4f8ef7">${(natMal/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${natTot>0?(natMal/natTot*100).toFixed(1):'-'}%</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">여성</div>
+      <div class="m-value" style="color:#f75f8e">${(natFem/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${natTot>0?(natFem/natTot*100).toFixed(1):'-'}%</div>
+    </div>`;
+  }
+
+  metricsHTML += `</div>`;
+
+  main.innerHTML = metricsHTML + `
+  <div class="chart-grid">
+    <div class="chart-card full">
+      <div class="c-title">시도별 생활인구</div>
+      <div class="legend-row" id="legendBar"></div>
+      <div class="chart-wrap" style="height:280px"><canvas id="barChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="c-title">구성 비율 (전국)</div>
+      <div class="chart-wrap" style="height:230px"><canvas id="pieChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="c-title">시도별 세부 비율</div>
+      <div class="chart-wrap" style="height:230px"><canvas id="ratioChart"></canvas></div>
+    </div>
+  </div>`;
+
+  // ─── Bar chart ───────────────────────────────────────────
+  const chartOpts = { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false } },
+    scales: { x: { ticks: { color:'#7c84a0', font:{size:11} }, grid:{color:'rgba(255,255,255,0.04)'} },
+              y: { ticks: { color:'#7c84a0', callback: v => (v/1e4).toFixed(0)+'만' }, grid:{color:'rgba(255,255,255,0.06)'} } }
+  };
+
+  let barDatasets = [], legendHTML = '', pieData = [], pieLabels = [];
+
+  if (isGender) {
+    const malKey = `${pKey}MalPcnt`, femKey = `${pKey}FemPcnt`;
+    const malVals = sidos.map(([,v]) => Math.round((v.sub[malKey]||0)/1e4));
+    const femVals = sidos.map(([,v]) => Math.round((v.sub[femKey]||0)/1e4));
+    barDatasets = [
+      { label:'남성', data: malVals, backgroundColor:'#4f8ef7', borderRadius:4 },
+      { label:'여성', data: femVals, backgroundColor:'#f75f8e', borderRadius:4 }
+    ];
+    legendHTML = `<span><span class="ld" style="background:#4f8ef7"></span>남성</span><span><span class="ld" style="background:#f75f8e"></span>여성</span>`;
+    const natMal = sidos.reduce((s,[,v]) => s + (v.sub[malKey]||0), 0);
+    const natFem = sidos.reduce((s,[,v]) => s + (v.sub[femKey]||0), 0);
+    pieData = [natMal, natFem]; pieLabels = ['남성','여성'];
+  } else if (isAge) {
+    const ageCols = ['age1','age2','age3','age4','age5','age6'];
+    const ageLabels = ['20세미만','20대','30대','40대','50대','60세이상'];
+    ageCols.forEach((col, i) => {
+      const key = `${pKey}${col.charAt(0).toUpperCase()+col.slice(1)}Pcnt`;
+      const vals = sidos.map(([,v]) => Math.round((v.sub[key]||0)/1e4));
+      barDatasets.push({ label: ageLabels[i], data: vals, backgroundColor: COLORS[i], borderRadius:3 });
+      legendHTML += `<span><span class="ld" style="background:${COLORS[i]}"></span>${ageLabels[i]}</span>`;
+      pieData.push(sidos.reduce((s,[,v]) => s+(v.sub[key]||0), 0));
+      pieLabels.push(ageLabels[i]);
+    });
+  } else if (isRes) {
+    const domKey = `${pKey}DomPcnt`, forKey = `${pKey}ForPcnt`;
+    const domVals = sidos.map(([,v]) => Math.round((v.sub[domKey]||0)/1e4));
+    const forVals = sidos.map(([,v]) => Math.round((v.sub[forKey]||0)/1e4));
+    barDatasets = [
+      { label:'내국인', data: domVals, backgroundColor:'#4fc98e', borderRadius:4 },
+      { label:'외국인', data: forVals, backgroundColor:'#f7b84f', borderRadius:4 }
+    ];
+    legendHTML = `<span><span class="ld" style="background:#4fc98e"></span>내국인</span><span><span class="ld" style="background:#f7b84f"></span>외국인</span>`;
+    const natDom = sidos.reduce((s,[,v]) => s+(v.sub[domKey]||0), 0);
+    const natFor = sidos.reduce((s,[,v]) => s+(v.sub[forKey]||0), 0);
+    pieData = [natDom, natFor]; pieLabels = ['내국인','외국인'];
+  }
+
+  document.getElementById('legendBar').innerHTML = legendHTML;
+
+  charts.bar = new Chart(document.getElementById('barChart'), {
+    type:'bar', data:{ labels, datasets: barDatasets },
+    options:{ ...chartOpts, scales:{...chartOpts.scales, x:{...chartOpts.scales.x, stacked:false}} }
+  });
+
+  // ─── Pie chart ───────────────────────────────────────────
+  charts.pie = new Chart(document.getElementById('pieChart'), {
+    type:'doughnut',
+    data:{ labels: pieLabels, datasets:[{ data: pieData, backgroundColor: COLORS.slice(0, pieData.length), borderWidth:0, hoverOffset:6 }] },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ position:'bottom', labels:{ color:'#7c84a0', font:{size:11}, boxWidth:10 } } }
+    }
+  });
+
+  // ─── Ratio chart (horizontal) ────────────────────────────
+  const ratioDatasets = barDatasets.map(ds => ({
+    ...ds,
+    data: sidos.map(([,v], i) => {
+      const tot = v.tot || 1;
+      return parseFloat((ds.data[i]*1e4/tot*100).toFixed(1));
+    })
+  }));
+
+  charts.ratio = new Chart(document.getElementById('ratioChart'), {
+    type:'bar',
+    data:{ labels, datasets: ratioDatasets },
+    options:{
+      indexAxis:'y', responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display:false } },
+      scales:{
+        x:{ stacked:true, ticks:{ color:'#7c84a0', callback: v=>v+'%' }, grid:{color:'rgba(255,255,255,0.06)'}, max:100 },
+        y:{ stacked:true, ticks:{ color:'#7c84a0', font:{size:10} }, grid:{display:false} }
+      }
+    }
+  });
+}
+</script>
+</body>
+</html>
