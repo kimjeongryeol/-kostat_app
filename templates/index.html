@@ -50,11 +50,7 @@
     border-radius: 3px;
   }
 
-  header h1 {
-    font-size: 15px;
-    font-weight: 500;
-    color: var(--text);
-  }
+  header h1 { font-size: 15px; font-weight: 500; color: var(--text); }
 
   header .badge {
     margin-left: auto;
@@ -69,7 +65,6 @@
     min-height: calc(100vh - 57px);
   }
 
-  /* ─── Sidebar ─── */
   .sidebar {
     background: var(--surface);
     border-right: 1px solid var(--border);
@@ -106,7 +101,6 @@
   }
 
   .type-btn:hover { background: var(--surface2); color: var(--text); }
-
   .type-btn.active {
     background: rgba(79,142,247,0.12);
     border-color: rgba(79,142,247,0.4);
@@ -152,11 +146,7 @@
   .fetch-btn:hover { opacity: 0.85; }
   .fetch-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  /* ─── Main ─── */
-  .main {
-    padding: 1.5rem 2rem;
-    overflow-y: auto;
-  }
+  .main { padding: 1.5rem 2rem; overflow-y: auto; }
 
   .metric-row {
     display: grid;
@@ -187,11 +177,7 @@
     line-height: 1;
   }
 
-  .metric-card .m-sub {
-    font-size: 11px;
-    color: var(--text3);
-    margin-top: 4px;
-  }
+  .metric-card .m-sub { font-size: 11px; color: var(--text3); margin-top: 4px; }
 
   .chart-grid {
     display: grid;
@@ -274,7 +260,6 @@
 </header>
 
 <div class="layout">
-  <!-- Sidebar -->
   <aside class="sidebar">
     <div class="sidebar-section">
       <label>데이터 유형</label>
@@ -296,7 +281,6 @@
     <button class="fetch-btn" id="fetchBtn" onclick="fetchData()">조회하기</button>
   </aside>
 
-  <!-- Main -->
   <main class="main" id="mainArea">
     <div class="state-box">
       <div class="icon">📊</div>
@@ -306,7 +290,18 @@
 </div>
 
 <script>
-// ─── Period dropdowns ───────────────────────────────────────
+// ─── 실제 API 키 패턴 (디버그로 확인된 값) ──────────────────────────────────
+// m{yyyyMM}AgettPcnt  → 합계
+// m{yyyyMM}Age19Pcnt  → 남성(gender) / 20세미만(age)
+// m{yyyyMM}Age20Pcnt  → 여성(gender) / 20대(age)
+// m{yyyyMM}Age30Pcnt  → 30대
+// m{yyyyMM}Age40Pcnt  → 40대
+// m{yyyyMM}Age50Pcnt  → 50대
+// m{yyyyMM}Age60Pcnt  → 60세이상
+// m{yyyyMM}DomPcnt    → 내국인 (resident)
+// m{yyyyMM}For_Pcnt   → 외국인 (resident) ※ 실제 키 확인 필요
+
+// ─── Period dropdowns ───────────────────────────────────────────────────────
 const periods = [];
 const now = new Date();
 for (let i = 18; i >= 0; i--) {
@@ -316,15 +311,14 @@ for (let i = 18; i >= 0; i--) {
 }
 
 const fmt = p => `${p.slice(0,4)}.${p.slice(4)}`;
-
 const fromSel = document.getElementById('fromPeriod');
-const toSel = document.getElementById('toPeriod');
+const toSel   = document.getElementById('toPeriod');
 periods.forEach((p, i) => {
   fromSel.innerHTML += `<option value="${p}" ${i===periods.length-4?'selected':''}>${fmt(p)}</option>`;
   toSel.innerHTML   += `<option value="${p}" ${i===periods.length-1?'selected':''}>${fmt(p)}</option>`;
 });
 
-// ─── Type buttons ───────────────────────────────────────────
+// ─── Type buttons ────────────────────────────────────────────────────────────
 let currentType = 'living_gender';
 document.querySelectorAll('.type-btn').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -334,28 +328,59 @@ document.querySelectorAll('.type-btn').forEach(btn => {
   });
 });
 
-// ─── Chart instances ────────────────────────────────────────
+// ─── Chart instances ─────────────────────────────────────────────────────────
 let charts = {};
 function destroyCharts() {
   Object.values(charts).forEach(c => c && c.destroy());
   charts = {};
 }
 
-// ─── Colors ─────────────────────────────────────────────────
 const COLORS = ['#4f8ef7','#f75f8e','#4fc98e','#f7b84f','#a78bfa','#38bdf8','#fb923c','#34d399'];
 
+// ─── 시도명 축약 ──────────────────────────────────────────────────────────────
 const SIDO_SHORT = nm => nm
   .replace('광역시','').replace('특별시','')
   .replace('특별자치시','').replace('특별자치도','')
-  .replace('도','').replace('시','');
+  .replace('도','').replace('시','').trim();
 
-// ─── Fetch ──────────────────────────────────────────────────
+// ─── 실제 키 빌더 (디버그 결과 기반) ────────────────────────────────────────
+function buildKeys(period, type) {
+  const p = `m${period}`;
+  if (type.includes('gender')) {
+    return {
+      tot: `${p}AgettPcnt`,
+      sub1: `${p}Age19Pcnt`,   // 남성
+      sub2: `${p}Age20Pcnt`,   // 여성
+    };
+  } else if (type.includes('age')) {
+    return {
+      tot:  `${p}AgettPcnt`,
+      age19:`${p}Age19Pcnt`,   // 20세미만
+      age20:`${p}Age20Pcnt`,   // 20대
+      age30:`${p}Age30Pcnt`,   // 30대
+      age40:`${p}Age40Pcnt`,   // 40대
+      age50:`${p}Age50Pcnt`,   // 50대
+      age60:`${p}Age60Pcnt`,   // 60세이상
+    };
+  } else if (type.includes('resident')) {
+    return {
+      tot:  `${p}AgettPcnt`,
+      sub1: `${p}DomPcnt`,     // 내국인
+      sub2: `${p}For_Pcnt`,    // 외국인 (실제 키는 staying_resident 조회 후 확인)
+    };
+  }
+  return { tot: `${p}AgettPcnt` };
+}
+
+// ─── Fetch ───────────────────────────────────────────────────────────────────
 async function fetchData() {
-  const btn = document.getElementById('fetchBtn');
+  const btn  = document.getElementById('fetchBtn');
   const main = document.getElementById('mainArea');
 
   const from = fromSel.value, to = toSel.value;
-  const allP = periods.filter(p => p >= Math.min(from,to) && p <= Math.max(from,to));
+  const lo = from < to ? from : to;
+  const hi = from < to ? to   : from;
+  const allP = periods.filter(p => p >= lo && p <= hi);
 
   btn.disabled = true;
   btn.textContent = '불러오는 중...';
@@ -363,14 +388,19 @@ async function fetchData() {
   destroyCharts();
 
   try {
-    const res = await fetch('/api/fetch', {
+    const res  = await fetch('/api/fetch', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
       body: JSON.stringify({ type: currentType, periods: allP })
     });
     const rows = await res.json();
 
-    if (!Array.isArray(rows) || rows.length === 0) throw new Error('데이터가 없습니다');
+    if (!Array.isArray(rows) || rows.length === 0)
+      throw new Error('데이터가 없습니다. 기간을 조정해 보세요.');
+
+    // 콘솔에 첫 row 키 출력 (디버그용)
+    console.log('[키 확인]', Object.keys(rows[0]));
+    console.log('[샘플]', rows[0]);
 
     renderDashboard(rows, allP, currentType);
   } catch(e) {
@@ -381,42 +411,40 @@ async function fetchData() {
   }
 }
 
-// ─── Render ─────────────────────────────────────────────────
+// ─── Render ──────────────────────────────────────────────────────────────────
 function renderDashboard(rows, allP, type) {
-  const main = document.getElementById('mainArea');
-  const latestP = allP[allP.length - 1];
+  const main     = document.getElementById('mainArea');
+  const latestP  = allP[allP.length - 1];
+  const keys     = buildKeys(latestP, type);
   const isGender = type.includes('gender');
   const isAge    = type.includes('age');
   const isRes    = type.includes('resident');
 
-  // primary filter code
-  const filtered = rows;
+  // ── 시도별 집계 ────────────────────────────────────────────────────────────
+  // populTypeNm === '계' 인 row만 사용 (중복 집계 방지)
+  const baseRows = rows.filter(r => r.populTypeNm === '계' || r.populTypeCd === '002000');
 
-  // detect sub-keys from first row
-  const sampleRow = filtered[0] || {};
-  const pKey = `m${latestP}`;
-  const subKeys = Object.keys(sampleRow).filter(k => k.startsWith(pKey) && !k.includes('Pnt'));
-
-  // build sido totals for latest period
   const sidoMap = {};
-  filtered.forEach(row => {
+  baseRows.forEach(row => {
     const sido = SIDO_SHORT(row.agencyNm || '');
     if (!sido) return;
-    if (!sidoMap[sido]) sidoMap[sido] = { tot: 0, sub: {} };
-    const tot = parseInt(sampleRow[`${pKey}TotPcnt`] || row[`${pKey}TotPcnt`] || 0);
-    sidoMap[sido].tot += parseInt(row[`${pKey}TotPcnt`] || 0);
-    subKeys.forEach(k => {
-      sidoMap[sido].sub[k] = (sidoMap[sido].sub[k] || 0) + parseInt(row[k] || 0);
+    if (!sidoMap[sido]) sidoMap[sido] = { tot: 0, subs: {} };
+
+    const tot = parseInt(row[keys.tot] || 0);
+    sidoMap[sido].tot += tot;
+
+    // 서브 키들 합산
+    Object.entries(keys).forEach(([k, colName]) => {
+      if (k === 'tot') return;
+      sidoMap[sido].subs[k] = (sidoMap[sido].subs[k] || 0) + parseInt(row[colName] || 0);
     });
   });
 
-  const sidos = Object.entries(sidoMap).sort((a,b) => b[1].tot - a[1].tot);
+  const sidos  = Object.entries(sidoMap).sort((a,b) => b[1].tot - a[1].tot);
   const labels = sidos.map(([k]) => k);
-
-  // national totals
   const natTot = sidos.reduce((s,[,v]) => s + v.tot, 0);
 
-  // ─── HTML ────────────────────────────────────────────────
+  // ── 메트릭 카드 ────────────────────────────────────────────────────────────
   let metricsHTML = `<div class="metric-row">
     <div class="metric-card">
       <div class="m-label">전국 합계</div>
@@ -425,27 +453,42 @@ function renderDashboard(rows, allP, type) {
     </div>`;
 
   if (isGender) {
-    const natMal = sidos.reduce((s,[,v]) => s + (v.sub[`${pKey}MalPcnt`]||0), 0);
-    const natFem = sidos.reduce((s,[,v]) => s + (v.sub[`${pKey}FemPcnt`]||0), 0);
+    const natSub1 = sidos.reduce((s,[,v]) => s + (v.subs.sub1||0), 0);
+    const natSub2 = sidos.reduce((s,[,v]) => s + (v.subs.sub2||0), 0);
     metricsHTML += `
     <div class="metric-card">
       <div class="m-label">남성</div>
-      <div class="m-value" style="color:#4f8ef7">${(natMal/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
-      <div class="m-sub">${natTot>0?(natMal/natTot*100).toFixed(1):'-'}%</div>
+      <div class="m-value" style="color:#4f8ef7">${(natSub1/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${natTot>0?(natSub1/natTot*100).toFixed(1):'-'}%</div>
     </div>
     <div class="metric-card">
       <div class="m-label">여성</div>
-      <div class="m-value" style="color:#f75f8e">${(natFem/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
-      <div class="m-sub">${natTot>0?(natFem/natTot*100).toFixed(1):'-'}%</div>
+      <div class="m-value" style="color:#f75f8e">${(natSub2/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${natTot>0?(natSub2/natTot*100).toFixed(1):'-'}%</div>
+    </div>`;
+  } else if (isRes) {
+    const natSub1 = sidos.reduce((s,[,v]) => s + (v.subs.sub1||0), 0);
+    const natSub2 = sidos.reduce((s,[,v]) => s + (v.subs.sub2||0), 0);
+    metricsHTML += `
+    <div class="metric-card">
+      <div class="m-label">내국인</div>
+      <div class="m-value" style="color:#4fc98e">${(natSub1/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${natTot>0?(natSub1/natTot*100).toFixed(1):'-'}%</div>
+    </div>
+    <div class="metric-card">
+      <div class="m-label">외국인</div>
+      <div class="m-value" style="color:#f7b84f">${(natSub2/1e4).toFixed(0)}<span style="font-size:14px;font-weight:400;margin-left:4px">만</span></div>
+      <div class="m-sub">${natTot>0?(natSub2/natTot*100).toFixed(1):'-'}%</div>
     </div>`;
   }
 
   metricsHTML += `</div>`;
 
+  // ── 차트 HTML ──────────────────────────────────────────────────────────────
   main.innerHTML = metricsHTML + `
   <div class="chart-grid">
     <div class="chart-card full">
-      <div class="c-title">시도별 생활인구</div>
+      <div class="c-title">시도별 생활인구 (${latestP.slice(0,4)}.${parseInt(latestP.slice(4))}월 기준)</div>
       <div class="legend-row" id="legendBar"></div>
       <div class="chart-wrap" style="height:280px"><canvas id="barChart"></canvas></div>
     </div>
@@ -459,87 +502,100 @@ function renderDashboard(rows, allP, type) {
     </div>
   </div>`;
 
-  // ─── Bar chart ───────────────────────────────────────────
-  const chartOpts = { responsive: true, maintainAspectRatio: false,
+  const chartBaseOpts = {
+    responsive: true, maintainAspectRatio: false,
     plugins: { legend: { display: false } },
-    scales: { x: { ticks: { color:'#7c84a0', font:{size:11} }, grid:{color:'rgba(255,255,255,0.04)'} },
-              y: { ticks: { color:'#7c84a0', callback: v => (v/1e4).toFixed(0)+'만' }, grid:{color:'rgba(255,255,255,0.06)'} } }
+    scales: {
+      x: { ticks: { color:'#7c84a0', font:{size:11} }, grid:{color:'rgba(255,255,255,0.04)'} },
+      y: { ticks: { color:'#7c84a0', callback: v => (v/1e4).toFixed(0)+'만' }, grid:{color:'rgba(255,255,255,0.06)'} }
+    }
   };
 
   let barDatasets = [], legendHTML = '', pieData = [], pieLabels = [];
 
   if (isGender) {
-    const malKey = `${pKey}MalPcnt`, femKey = `${pKey}FemPcnt`;
-    const malVals = sidos.map(([,v]) => Math.round((v.sub[malKey]||0)/1e4));
-    const femVals = sidos.map(([,v]) => Math.round((v.sub[femKey]||0)/1e4));
+    const v1 = sidos.map(([,v]) => Math.round((v.subs.sub1||0)));
+    const v2 = sidos.map(([,v]) => Math.round((v.subs.sub2||0)));
     barDatasets = [
-      { label:'남성', data: malVals, backgroundColor:'#4f8ef7', borderRadius:4 },
-      { label:'여성', data: femVals, backgroundColor:'#f75f8e', borderRadius:4 }
+      { label:'남성', data: v1, backgroundColor:'#4f8ef7', borderRadius:4 },
+      { label:'여성', data: v2, backgroundColor:'#f75f8e', borderRadius:4 },
     ];
     legendHTML = `<span><span class="ld" style="background:#4f8ef7"></span>남성</span><span><span class="ld" style="background:#f75f8e"></span>여성</span>`;
-    const natMal = sidos.reduce((s,[,v]) => s + (v.sub[malKey]||0), 0);
-    const natFem = sidos.reduce((s,[,v]) => s + (v.sub[femKey]||0), 0);
-    pieData = [natMal, natFem]; pieLabels = ['남성','여성'];
+    pieData   = [sidos.reduce((s,[,v])=>s+(v.subs.sub1||0),0), sidos.reduce((s,[,v])=>s+(v.subs.sub2||0),0)];
+    pieLabels = ['남성','여성'];
+
   } else if (isAge) {
-    const ageCols = ['age1','age2','age3','age4','age5','age6'];
-    const ageLabels = ['20세미만','20대','30대','40대','50대','60세이상'];
-    ageCols.forEach((col, i) => {
-      const key = `${pKey}${col.charAt(0).toUpperCase()+col.slice(1)}Pcnt`;
-      const vals = sidos.map(([,v]) => Math.round((v.sub[key]||0)/1e4));
-      barDatasets.push({ label: ageLabels[i], data: vals, backgroundColor: COLORS[i], borderRadius:3 });
-      legendHTML += `<span><span class="ld" style="background:${COLORS[i]}"></span>${ageLabels[i]}</span>`;
-      pieData.push(sidos.reduce((s,[,v]) => s+(v.sub[key]||0), 0));
-      pieLabels.push(ageLabels[i]);
+    const ageDefs = [
+      { key:'age19', label:'20세미만', color: COLORS[0] },
+      { key:'age20', label:'20대',     color: COLORS[1] },
+      { key:'age30', label:'30대',     color: COLORS[2] },
+      { key:'age40', label:'40대',     color: COLORS[3] },
+      { key:'age50', label:'50대',     color: COLORS[4] },
+      { key:'age60', label:'60세이상', color: COLORS[5] },
+    ];
+    ageDefs.forEach(({ key, label, color }) => {
+      barDatasets.push({
+        label, borderRadius: 3,
+        data: sidos.map(([,v]) => v.subs[key]||0),
+        backgroundColor: color,
+      });
+      legendHTML += `<span><span class="ld" style="background:${color}"></span>${label}</span>`;
+      pieData.push(sidos.reduce((s,[,v]) => s+(v.subs[key]||0), 0));
+      pieLabels.push(label);
     });
+
   } else if (isRes) {
-    const domKey = `${pKey}DomPcnt`, forKey = `${pKey}ForPcnt`;
-    const domVals = sidos.map(([,v]) => Math.round((v.sub[domKey]||0)/1e4));
-    const forVals = sidos.map(([,v]) => Math.round((v.sub[forKey]||0)/1e4));
+    const v1 = sidos.map(([,v]) => v.subs.sub1||0);
+    const v2 = sidos.map(([,v]) => v.subs.sub2||0);
     barDatasets = [
-      { label:'내국인', data: domVals, backgroundColor:'#4fc98e', borderRadius:4 },
-      { label:'외국인', data: forVals, backgroundColor:'#f7b84f', borderRadius:4 }
+      { label:'내국인', data: v1, backgroundColor:'#4fc98e', borderRadius:4 },
+      { label:'외국인', data: v2, backgroundColor:'#f7b84f', borderRadius:4 },
     ];
     legendHTML = `<span><span class="ld" style="background:#4fc98e"></span>내국인</span><span><span class="ld" style="background:#f7b84f"></span>외국인</span>`;
-    const natDom = sidos.reduce((s,[,v]) => s+(v.sub[domKey]||0), 0);
-    const natFor = sidos.reduce((s,[,v]) => s+(v.sub[forKey]||0), 0);
-    pieData = [natDom, natFor]; pieLabels = ['내국인','외국인'];
+    pieData   = [sidos.reduce((s,[,v])=>s+(v.subs.sub1||0),0), sidos.reduce((s,[,v])=>s+(v.subs.sub2||0),0)];
+    pieLabels = ['내국인','외국인'];
   }
 
   document.getElementById('legendBar').innerHTML = legendHTML;
 
+  // ── 막대 차트 ──────────────────────────────────────────────────────────────
   charts.bar = new Chart(document.getElementById('barChart'), {
-    type:'bar', data:{ labels, datasets: barDatasets },
-    options:{ ...chartOpts, scales:{...chartOpts.scales, x:{...chartOpts.scales.x, stacked:false}} }
+    type: 'bar',
+    data: { labels, datasets: barDatasets },
+    options: chartBaseOpts,
   });
 
-  // ─── Pie chart ───────────────────────────────────────────
+  // ── 도넛 차트 ─────────────────────────────────────────────────────────────
   charts.pie = new Chart(document.getElementById('pieChart'), {
-    type:'doughnut',
-    data:{ labels: pieLabels, datasets:[{ data: pieData, backgroundColor: COLORS.slice(0, pieData.length), borderWidth:0, hoverOffset:6 }] },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ position:'bottom', labels:{ color:'#7c84a0', font:{size:11}, boxWidth:10 } } }
+    type: 'doughnut',
+    data: {
+      labels: pieLabels,
+      datasets: [{ data: pieData, backgroundColor: COLORS.slice(0, pieData.length), borderWidth:0, hoverOffset:6 }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position:'bottom', labels:{ color:'#7c84a0', font:{size:11}, boxWidth:10 } } }
     }
   });
 
-  // ─── Ratio chart (horizontal) ────────────────────────────
+  // ── 수평 비율 차트 ────────────────────────────────────────────────────────
   const ratioDatasets = barDatasets.map(ds => ({
     ...ds,
     data: sidos.map(([,v], i) => {
       const tot = v.tot || 1;
-      return parseFloat((ds.data[i]*1e4/tot*100).toFixed(1));
+      return parseFloat((ds.data[i] / tot * 100).toFixed(1));
     })
   }));
 
   charts.ratio = new Chart(document.getElementById('ratioChart'), {
-    type:'bar',
-    data:{ labels, datasets: ratioDatasets },
-    options:{
-      indexAxis:'y', responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display:false } },
-      scales:{
-        x:{ stacked:true, ticks:{ color:'#7c84a0', callback: v=>v+'%' }, grid:{color:'rgba(255,255,255,0.06)'}, max:100 },
-        y:{ stacked:true, ticks:{ color:'#7c84a0', font:{size:10} }, grid:{display:false} }
+    type: 'bar',
+    data: { labels, datasets: ratioDatasets },
+    options: {
+      indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { stacked:true, max:100, ticks:{ color:'#7c84a0', callback: v=>v+'%' }, grid:{color:'rgba(255,255,255,0.06)'} },
+        y: { stacked:true, ticks:{ color:'#7c84a0', font:{size:10} }, grid:{display:false} }
       }
     }
   });

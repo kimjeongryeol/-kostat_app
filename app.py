@@ -6,11 +6,11 @@ app = Flask(__name__)
 KOSTAT_BASE = "https://data.kostat.go.kr/nowcast"
 
 ENDPOINTS = {
-    "living_gender":   "/popul/living/get-gender.do",
-    "living_age":      "/popul/living/get-age.do",
-    "staying_resident":"/popul/staying/get-resident.do",
-    "staying_gender":  "/popul/staying/get-gender.do",
-    "staying_age":     "/popul/staying/get-age.do",
+    "living_gender":    "/popul/living/get-gender.do",
+    "living_age":       "/popul/living/get-age.do",
+    "staying_resident": "/popul/staying/get-resident.do",
+    "staying_gender":   "/popul/staying/get-gender.do",
+    "staying_age":      "/popul/staying/get-age.do",
 }
 
 REFERERS = {
@@ -68,82 +68,119 @@ AGENCYS = [
 
 ITEMS_MAP = {
     "living_gender": [
-        {"key":"004000","title":"\uacc4","col":"tot"},
-        {"key":"004001","title":"\ub0a8","col":"mal"},
-        {"key":"004002","title":"\uc5ec","col":"fem"}
+        {"key": "004000", "title": "계", "col": "agett"},
+        {"key": "004001", "title": "남", "col": "age19"},
+        {"key": "004002", "title": "여", "col": "age20"},
     ],
     "living_age": [
-        {"key":"005000","title":"\uacc4","col":"tot"},
-        {"key":"005001","title":"20\uc138\ubbf8\ub9cc","col":"age1"},
-        {"key":"005002","title":"20\ub300","col":"age2"},
-        {"key":"005003","title":"30\ub300","col":"age3"},
-        {"key":"005004","title":"40\ub300","col":"age4"},
-        {"key":"005005","title":"50\ub300","col":"age5"},
-        {"key":"005006","title":"60\uc138\uc774\uc0c1","col":"age6"}
+        {"key": "003000", "title": "연령:계",   "col": "agett"},
+        {"key": "003001", "title": "20세 미만", "col": "age19"},
+        {"key": "003002", "title": "20대",      "col": "age20"},
+        {"key": "003003", "title": "30대",      "col": "age30"},
+        {"key": "003004", "title": "40대",      "col": "age40"},
+        {"key": "003005", "title": "50대",      "col": "age50"},
+        {"key": "003006", "title": "60세 이상", "col": "age60"},
     ],
     "staying_resident": [
-        {"key":"006000","title":"\uacc4","col":"tot"},
-        {"key":"006001","title":"\ub0b4\uad6d\uc778","col":"dom"},
-        {"key":"006002","title":"\uc678\uad6d\uc778","col":"for_"}
+        {"key": "006000", "title": "계",     "col": "agett"},
+        {"key": "006001", "title": "내국인", "col": "dom"},
+        {"key": "006002", "title": "외국인", "col": "for_"},
     ],
     "staying_gender": [
-        {"key":"004000","title":"\uacc4","col":"tot"},
-        {"key":"004001","title":"\ub0a8","col":"mal"},
-        {"key":"004002","title":"\uc5ec","col":"fem"}
+        {"key": "004000", "title": "계", "col": "agett"},
+        {"key": "004001", "title": "남", "col": "age19"},
+        {"key": "004002", "title": "여", "col": "age20"},
     ],
     "staying_age": [
-        {"key":"005000","title":"\uacc4","col":"tot"},
-        {"key":"005001","title":"20\uc138\ubbf8\ub9cc","col":"age1"},
-        {"key":"005002","title":"20\ub300","col":"age2"},
-        {"key":"005003","title":"30\ub300","col":"age3"},
-        {"key":"005004","title":"40\ub300","col":"age4"},
-        {"key":"005005","title":"50\ub300","col":"age5"},
-        {"key":"005006","title":"60\uc138\uc774\uc0c1","col":"age6"}
+        {"key": "003000", "title": "연령:계",   "col": "agett"},
+        {"key": "003001", "title": "20세 미만", "col": "age19"},
+        {"key": "003002", "title": "20대",      "col": "age20"},
+        {"key": "003003", "title": "30대",      "col": "age30"},
+        {"key": "003004", "title": "40대",      "col": "age40"},
+        {"key": "003005", "title": "50대",      "col": "age50"},
+        {"key": "003006", "title": "60세 이상", "col": "age60"},
     ],
 }
+
+COL_AXIS_MAP = {
+    "living_gender":    [{"val": "T", "text": "기준년월"}, {"val": "I", "text": "성별"}],
+    "living_age":       [{"val": "T", "text": "기준년월"}, {"val": "I", "text": "연령"}],
+    "staying_resident": [{"val": "T", "text": "기준년월"}, {"val": "I", "text": "내외국인"}],
+    "staying_gender":   [{"val": "T", "text": "기준년월"}, {"val": "I", "text": "성별"}],
+    "staying_age":      [{"val": "T", "text": "기준년월"}, {"val": "I", "text": "연령"}],
+}
+
+PCOLS_COMMON = [
+    {"key": "002000", "col": "pt", "colnm": "생활인구:계"},
+    {"key": "002001", "col": "pn", "colnm": "주민등록인구"},
+    {"key": "002002", "col": "ps", "colnm": "체류인구"},
+    {"key": "002003", "col": "pf", "colnm": "외국인"},
+]
+
+ROW_AXIS_COMMON = [
+    {"val": "A", "text": "행정구역별"},
+    {"val": "P", "text": "생활인구"},
+]
+
 
 def get_session_cookie(referer_path):
     s = req.Session()
     s.get(
         KOSTAT_BASE + referer_path,
         headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"},
-        timeout=10
+        timeout=10,
     )
     return s
+
 
 @app.route("/")
 def index():
     return render_template("index.html")
 
+
 @app.route("/api/fetch", methods=["POST"])
 def fetch_data():
-    body = request.json
-    dtype = body.get("type", "living_gender")
-    periods = body.get("periods", ["202507","202508","202509"])
+    body    = request.json
+    dtype   = body.get("type", "living_gender")
+    periods = body.get("periods", ["202507", "202508", "202509"])
 
     if dtype not in ENDPOINTS:
         return jsonify({"error": "unknown type"}), 400
 
     referer_path = REFERERS[dtype]
-    session = get_session_cookie(referer_path)
+    session      = get_session_cookie(referer_path)
 
     payload = {
-        "agencyCds": [], "agencys": AGENCYS, "areaTypes": [],
-        "assayColData": "Y", "assayColRate": "Y",
-        "assayPrevMonthYn": "N", "assayPrevYearYn": "N",
-        "colAxis": [{"val":"T","text":"\uae30\uc900\ub144\uc6d4"},{"val":"I","text":"\uc131\ubcc4"}],
-        "dataKindCd": "",
-        "downExcelCellMerge": "Y", "downFileEncoding": "ANSI", "downFileType": "xlsx",
-        "excelFields": [{"label":"\uc2dc\ub3c4\uba85","field":"agencyNm"},{"label":"\uc2dc\uad70\uad6c\uba85","field":"districtNm"}],
-        "excelHeaders": [],
-        "items": ITEMS_MAP[dtype],
-        "nd": 1775438606174,
-        "orderBys": ["A","P"], "page": 1,
-        "pcols": [{"key":"002000","col":"pt","colnm":"\uc0dd\ud65c\uc778\uad6c:\uacc4"},{"key":"002001","col":"pn","colnm":"\uc8fc\ubbfc\ub4f1\ub85d\uc778\uad6c"}],
-        "periods": periods,
-        "rowAxis": [{"val":"A","text":"\ud589\uc815\uad6c\uc5ed\ubcc4"},{"val":"P","text":"\uc0dd\ud65c\uc778\uad6c"}],
-        "rows": 9999999, "sidx": "", "sord": "asc", "sqlType": "IT", "stdYmSort": "asc",
-        "_search": False
+        "agencyCds":          [],
+        "agencys":            AGENCYS,
+        "areaTypes":          [],
+        "assayColData":       "Y",
+        "assayColRate":       "Y",
+        "assayPrevMonthYn":   "N",
+        "assayPrevYearYn":    "N",
+        "colAxis":            COL_AXIS_MAP[dtype],
+        "dataKindCd":         "",
+        "downExcelCellMerge": "Y",
+        "downFileEncoding":   "ANSI",
+        "downFileType":       "xlsx",
+        "excelFields": [
+            {"label": "시도명",   "field": "agencyNm"},
+            {"label": "시군구명", "field": "districtNm"},
+        ],
+        "excelHeaders":       [],
+        "items":              ITEMS_MAP[dtype],
+        "nd":                 1775695750977,
+        "orderBys":           ["A", "P"],
+        "page":               1,
+        "pcols":              PCOLS_COMMON,
+        "periods":            periods,
+        "rowAxis":            ROW_AXIS_COMMON,
+        "rows":               9999999,
+        "sidx":               "",
+        "sord":               "asc",
+        "sqlType":            "IT",
+        "stdYmSort":          "asc",
+        "_search":            False,
     }
 
     try:
@@ -151,23 +188,58 @@ def fetch_data():
             KOSTAT_BASE + ENDPOINTS[dtype],
             json=payload,
             headers={
-                "Content-Type": "application/json;charset=UTF-8",
-                "Referer": KOSTAT_BASE + referer_path,
+                "Content-Type":     "application/json;charset=UTF-8",
+                "Referer":          KOSTAT_BASE + referer_path,
                 "X-Requested-With": "XMLHttpRequest",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-                "Accept": "application/json, text/javascript, */*; q=0.01",
-                "Origin": KOSTAT_BASE,
+                "User-Agent":       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+                "Accept":           "application/json, text/javascript, */*; q=0.01",
+                "Origin":           KOSTAT_BASE,
             },
-            timeout=30
+            timeout=30,
         )
 
         if not r.text:
-            return jsonify({"error": "\ube48 \uc751\ub2f5 \u2014 \uc138\uc158 \ub9cc\ub8cc \ub610\ub294 \ud30c\ub77c\ubbf8\ud130 \uc624\ub958"}), 502
-        return jsonify(r.json())
+            return jsonify({"error": "빈 응답 — 세션 만료 또는 파라미터 오류"}), 502
+
+        data = r.json()
+
+        # ─── 디버그: 실제 응답 구조 터미널에 출력 ───────────────────────────
+        print("\n" + "="*60)
+        print(f"[DEBUG] dtype={dtype}, periods={periods}")
+        print(f"[DEBUG] 응답 타입: {type(data)}")
+
+        if isinstance(data, dict):
+            print(f"[DEBUG] 최상위 키: {list(data.keys())}")
+            # rows 키가 있으면 그 안을 확인
+            rows = data.get("rows", data.get("data", data.get("list", None)))
+            if rows and isinstance(rows, list) and len(rows) > 0:
+                print(f"[DEBUG] rows 개수: {len(rows)}")
+                print(f"[DEBUG] 첫번째 row 키: {list(rows[0].keys())}")
+                print(f"[DEBUG] 첫번째 row 샘플:\n{rows[0]}")
+            else:
+                print(f"[DEBUG] dict 전체 내용(앞 500자): {str(data)[:500]}")
+
+        elif isinstance(data, list):
+            print(f"[DEBUG] 리스트 길이: {len(data)}")
+            if len(data) > 0:
+                print(f"[DEBUG] 첫번째 row 키: {list(data[0].keys())}")
+                print(f"[DEBUG] 첫번째 row 샘플:\n{data[0]}")
+        print("="*60 + "\n")
+        # ────────────────────────────────────────────────────────────────────
+
+        # rows 추출 후 반환
+        if isinstance(data, dict):
+            rows = data.get("rows", data.get("data", data.get("list", None)))
+            if rows is not None:
+                return jsonify(rows)
+
+        return jsonify(data)
 
     except Exception as e:
+        print(f"[ERROR] {e}")
         return jsonify({"error": str(e)}), 500
 
+
 if __name__ == "__main__":
-    print("\u2705 http://127.0.0.1:5000 \uc5d0\uc11c \uc2e4\ud589 \uc911")
+    print("✅ http://127.0.0.1:5000 에서 실행 중")
     app.run(debug=True, port=5000)
