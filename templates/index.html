@@ -390,8 +390,7 @@ function renderDashboard(rows, allP, type) {
   const isRes    = type.includes('resident');
 
   // primary filter code
-  const primaryCode = rows[0]?.populTypeCd || null;
-  const filtered = primaryCode ? rows.filter(r => r.populTypeCd === primaryCode) : rows;
+  const filtered = rows;
 
   // detect sub-keys from first row
   const sampleRow = filtered[0] || {};
